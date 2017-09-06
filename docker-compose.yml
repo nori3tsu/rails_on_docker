@@ -1,0 +1,64 @@
+version: "2"
+services:
+  datastore:
+    image: busybox
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - redis-data:/data
+      - bundle_install:/app/vendor/bundle
+      - bundle:/app/.bundle
+      - node_modules:/app/node_modules
+
+  mysql:
+    image: "mysql:5.7.19"
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+    ports:
+      - '3306:3306'
+    volumes_from:
+      - datastore
+
+  redis:
+    image: redis:alpine
+    ports:
+      - '6379:6379'
+    volumes_from:
+      - datastore
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    ports:
+      - '3000:3000'
+    environment:
+      MYSQL_USERNAME: root
+      MYSQL_PASSWORD: password
+      MYSQL_HOST: mysql
+      REDIS_URL: "redis://redis:6379"
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    depends_on:
+      - mysql
+      - redis
+    networks:
+      - default
+    volumes:
+      - .:/app
+    volumes_from:
+      - datastore
+    command: ["bundle", "exec", "rails", "s", "-b", "0.0.0.0"]
+    tty: true
+    stdin_open: true
+
+volumes:
+  mysql-data:
+    driver: local
+  redis-data:
+    driver: local
+  bundle_install:
+    driver: local
+  bundle:
+    driver: local
+  node_modules:
+    driver: local
